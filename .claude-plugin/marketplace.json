@@ -1,0 +1,15 @@
+{
+  "name": "skills",
+  "owner": {
+    "name": "karian7",
+    "email": "karian7@gmail.com"
+  },
+  "description": "Koasu(karian7) 의 개인 스킬 마켓플레이스 — Claude Code & Codex 호환",
+  "plugins": [
+    {
+      "name": "karian7",
+      "source": "./plugins/karian7",
+      "description": "Koasu의 통합 스킬 모음"
+    }
+  ]
+}

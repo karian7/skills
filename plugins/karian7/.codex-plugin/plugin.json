@@ -1,0 +1,23 @@
+{
+  "name": "karian7",
+  "version": "0.1.0",
+  "description": "Koasu(karian7) 의 통합 스킬 플러그인",
+  "author": {
+    "name": "karian7",
+    "email": "karian7@gmail.com",
+    "url": "https://github.com/karian7"
+  },
+  "homepage": "https://github.com/karian7/skills",
+  "repository": "https://github.com/karian7/skills",
+  "license": "MIT",
+  "keywords": ["personal", "skills", "productivity"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Koasu Skills",
+    "shortDescription": "개인 스킬 통합 플러그인",
+    "longDescription": "Koasu(karian7) 가 일상적으로 사용하는 스킬들을 모은 플러그인. 첫 스킬: md-preview.",
+    "developerName": "karian7",
+    "category": "Productivity",
+    "capabilities": ["Interactive"]
+  }
+}

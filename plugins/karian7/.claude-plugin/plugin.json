@@ -1,0 +1,11 @@
+{
+  "name": "karian7",
+  "description": "Koasu(karian7) 의 통합 스킬 플러그인",
+  "author": {
+    "name": "karian7",
+    "email": "karian7@gmail.com"
+  },
+  "license": "MIT",
+  "keywords": ["personal", "skills", "productivity"],
+  "homepage": "https://github.com/karian7/skills"
+}
