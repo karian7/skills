@@ -1,0 +1,4 @@
+interface:
+  display_name: "Markdown Preview"
+  short_description: "브라우저에서 Markdown을 실시간 미리보기"
+  default_prompt: "Use $md-preview to open this Markdown file in a browser with live reload."

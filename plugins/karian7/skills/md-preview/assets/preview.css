@@ -1,0 +1,339 @@
+/* GitHub-like markdown style — mirrors iamcco/markdown-preview.nvim */
+
+:root {
+  --color-text-primary: #24292e;
+  --color-text-secondary: #586069;
+  --color-text-link: #4078c0;
+  --color-bg-page: #f6f8fa;
+  --color-bg-primary: #fff;
+  --color-bg-secondary: #f6f8fa;
+  --color-bg-tertiary: #f8f8f8;
+  --color-border-primary: #d1d5da;
+  --color-border-secondary: #eaecef;
+  --color-blockquote-border: #dfe2e5;
+  --color-table-border: #dfe2e5;
+  --color-table-tr-border: #c6cbd1;
+  --color-code-bg: #1b1f230d;
+  --color-banner-bg: #f6f8fa;
+  --color-banner-border: #d1d5da;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-text-primary: #c9d1d9;
+    --color-text-secondary: #8b949e;
+    --color-text-link: #58a6ff;
+    --color-bg-page: #181a1b;
+    --color-bg-primary: #0d1117;
+    --color-bg-secondary: #0d1117;
+    --color-bg-tertiary: #161b22;
+    --color-border-primary: #30363d;
+    --color-border-secondary: #21262d;
+    --color-blockquote-border: #3b434b;
+    --color-table-border: #3b434b;
+    --color-table-tr-border: #272c32;
+    --color-code-bg: #f0f6fc26;
+    --color-banner-bg: #0d1117;
+    --color-banner-border: #30363d;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* Hide pandoc's auto-generated title block (title + date) — already in markdown body */
+header#title-block-header {
+  display: none;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  background-color: var(--color-bg-page);
+  color: var(--color-text-primary);
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Arial, freesans, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-size: 16px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+/* Banner — full viewport width */
+.md-preview-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background-color: var(--color-banner-bg);
+  border-bottom: 1px solid var(--color-banner-border);
+  font-family: "Helvetica Neue", Helvetica, "Segoe UI", Arial, freesans, sans-serif;
+  font-size: 14px;
+  line-height: 24px;
+  color: var(--color-text-secondary);
+}
+
+.md-preview-eyebrow {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.md-preview-banner code {
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  color: var(--color-text-primary);
+  padding: 0;
+}
+
+/* Page container */
+#md-preview-container {
+  margin: 0 auto;
+  max-width: 900px;
+  color: var(--color-text-primary);
+}
+
+/* Markdown body */
+.md-preview-body {
+  padding: 45px;
+  background: var(--color-bg-primary);
+  border-left: 1px solid var(--color-border-primary);
+  border-right: 1px solid var(--color-border-primary);
+  border-bottom: 1px solid var(--color-border-primary);
+  border-bottom-left-radius: 3px;
+  border-bottom-right-radius: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .md-preview-body {
+    border: none;
+  }
+}
+
+.md-preview-body > *:first-child {
+  margin-top: 0 !important;
+}
+
+.md-preview-body > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 1em;
+  margin-bottom: 16px;
+  font-weight: bold;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+}
+
+h1 {
+  margin: 0.67em 0;
+  padding-bottom: 0.3em;
+  font-size: 2.25em;
+  line-height: 1.2;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+h2 {
+  padding-bottom: 0.3em;
+  font-size: 1.75em;
+  line-height: 1.225;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+h3 {
+  font-size: 1.5em;
+  line-height: 1.43;
+}
+
+h4 {
+  font-size: 1.25em;
+}
+
+h5 {
+  font-size: 1em;
+}
+
+h6 {
+  font-size: 1em;
+  color: var(--color-text-secondary);
+}
+
+p,
+blockquote,
+ul,
+ol,
+dl,
+table,
+pre {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+a {
+  color: var(--color-text-link);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+hr {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  height: 0;
+  border: 0;
+  border-top: 1px solid var(--color-border-primary);
+}
+
+ul,
+ol {
+  padding-left: 2em;
+}
+
+ol ol,
+ul ol {
+  list-style-type: lower-roman;
+}
+
+ol ul,
+ul ul {
+  list-style-type: circle;
+}
+
+ol ul ul,
+ul ul ul {
+  list-style-type: square;
+}
+
+li + li {
+  margin-top: 0;
+}
+
+blockquote {
+  margin: 0 0 16px;
+  padding: 0 15px;
+  color: var(--color-text-secondary);
+  border-left: 4px solid var(--color-blockquote-border);
+}
+
+blockquote > :first-child {
+  margin-top: 0;
+}
+
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+code {
+  font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+  padding: 0.2em 0;
+  margin: 0;
+  font-size: 85%;
+  background-color: var(--color-code-bg);
+  border-radius: 3px;
+}
+
+code::before,
+code::after {
+  letter-spacing: -0.2em;
+  content: "\00a0";
+}
+
+pre {
+  word-wrap: normal;
+  padding: 16px;
+  overflow: auto;
+  font-size: 85%;
+  line-height: 1.45;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 3px;
+  margin-bottom: 16px;
+}
+
+/* pandoc syntax-highlighting wrapper — override hardcoded #f8f8f8 so dark mode picks up the right background */
+div.sourceCode {
+  background-color: var(--color-bg-tertiary);
+  border-radius: 3px;
+}
+
+pre code {
+  display: inline;
+  max-width: initial;
+  padding: 0;
+  margin: 0;
+  overflow: initial;
+  font-size: 100%;
+  line-height: inherit;
+  word-wrap: normal;
+  white-space: pre;
+  border: 0;
+  border-radius: 3px;
+  background-color: transparent;
+}
+
+pre code::before,
+pre code::after {
+  content: normal;
+}
+
+img {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+table {
+  display: block;
+  width: 100%;
+  overflow: auto;
+  word-break: normal;
+  word-break: keep-all;
+  border-collapse: collapse;
+  border-spacing: 0;
+  margin-bottom: 16px;
+}
+
+table tr {
+  background-color: var(--color-bg-primary);
+  border-top: 1px solid var(--color-table-tr-border);
+}
+
+table tr:nth-child(2n) {
+  background-color: var(--color-bg-tertiary);
+}
+
+table th,
+table td {
+  padding: 6px 13px;
+  border: 1px solid var(--color-table-border);
+  vertical-align: top;
+}
+
+strong {
+  font-weight: bold;
+}
+
+em {
+  font-style: italic;
+}
+
+del {
+  text-decoration: line-through;
+}
+
+.task-list-item {
+  list-style-type: none;
+}
+
+.task-list-item input {
+  margin: 0 0.35em 0.25em -1.6em;
+  vertical-align: middle;
+}
+
+@media (max-width: 720px) {
+  .md-preview-body {
+    padding: 24px 16px;
+  }
+}
