@@ -1,6 +1,6 @@
 # skills
 
-Koasu(karian7) 의 개인 스킬 마켓플레이스. **Claude Code** 와 **Codex CLI** 양쪽 호환.
+karian7 의 개인 스킬 마켓플레이스. **Claude Code** 와 **Codex CLI** 양쪽 호환.
 
 ## 구조
 
@@ -13,7 +13,10 @@ skills/                              ← 마켓플레이스 (이름: "skills")
         ├── .claude-plugin/plugin.json
         ├── .codex-plugin/plugin.json
         └── skills/
-            └── md-preview/SKILL.md   ← 첫 스킬
+            ├── md-preview/
+            ├── daum-mail/
+            ├── naver-mail/
+            └── netlify/
 ```
 
 ## 설치
@@ -24,8 +27,6 @@ skills/                              ← 마켓플레이스 (이름: "skills")
 /plugin marketplace add karian7/skills
 /plugin install karian7@skills
 ```
-
-호출: `/karian7:md-preview`
 
 ### Codex
 
@@ -40,13 +41,16 @@ codex plugin marketplace add karian7/skills
 > enabled = true
 > ```
 >
-> 이후 Codex 재시작. skill list 에 `karian7:md-preview` 노출 확인.
+> 이후 Codex 재시작.
 
-## 포함된 플러그인
+## 포함된 스킬
 
-| Plugin | 설명 | 스킬 수 |
-|---|---|---|
-| `karian7` | Koasu 의 통합 스킬 플러그인 | 1 (md-preview) |
+| 스킬 | 설명 |
+|------|------|
+| `karian7:md-preview` | 로컬 Markdown 파일을 pandoc으로 렌더링해 브라우저에서 라이브 프리뷰 |
+| `karian7:daum-mail` | Daum/Hanmail IMAP — 목록·읽기·검색·초안·휴지통·브리핑. keyring 자격증명 지원 |
+| `karian7:naver-mail` | Naver Mail IMAP — 목록·읽기·검색·초안·휴지통·브리핑. keyring 자격증명 지원 |
+| `karian7:netlify` | 현재 디렉토리 정적 파일을 Netlify CLI로 배포, 완료 후 브라우저 자동 오픈 |
 
 ## 업데이트
 

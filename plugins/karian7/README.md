@@ -1,6 +1,6 @@
 # karian7 plugin
 
-Koasu(karian7) 의 통합 스킬 플러그인.
+karian7 의 통합 스킬 플러그인.
 
 ## 포함된 스킬
 
