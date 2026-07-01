@@ -68,12 +68,31 @@ Run `status` to report whether a managed preview server is running, which file i
 
 Run `stop` to terminate the managed preview server and remove the saved state file.
 
+## Platform Notes
+
+### Windows
+
+`pandoc` 설치:
+```powershell
+winget install JohnMacFarlane.Pandoc
+# 또는: choco install pandoc / scoop install pandoc
+```
+
+브라우저 열기는 Python `os.startfile()` 을 사용하므로 별도 명령 불필요.
+
+경로에 공백이 있으면 따옴표로 감싸거나 백슬래시(`\`)를 포워드슬래시(`/`)로 대체:
+```bash
+uv run python ~/.claude/skills/md-preview/scripts/md_preview.py start "C:/Users/me/docs/readme.md"
+```
+
+`--no-auto-close` 없이 사용하면 탭 닫기 감지 후 자동 종료 — Windows에서도 동일하게 동작한다.
+
 ## Known Limitations
 
 - Relative images resolve correctly because the preview file is written next to the source file.
 - `.md` hyperlinks are not rewritten to preview URLs — they remain as-is.
 - Neovim cursor sync, scroll sync, Mermaid, KaTeX, and PlantUML are not supported.
-- `pandoc` must be installed before using the skill (`brew install pandoc`). If it is missing, stop and report the dependency gap rather than guessing.
+- `pandoc` must be installed before using the skill (`brew install pandoc` on macOS, `winget install JohnMacFarlane.Pandoc` on Windows). If it is missing, stop and report the dependency gap rather than guessing.
 
 ## Resources
 

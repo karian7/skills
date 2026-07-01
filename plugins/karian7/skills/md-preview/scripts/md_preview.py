@@ -241,10 +241,19 @@ def browser_url(port: int, preview_name: str, override_base_url: str | None = No
 
 
 def open_browser(url: str) -> None:
-    opener = shutil.which("open") or shutil.which("xdg-open")
-    if not opener:
-        raise RuntimeError("No browser opener command found (`open` or `xdg-open`).")
-    subprocess.run([opener, url], check=True)
+    import platform
+    system = platform.system()
+    if system == "Darwin":
+        subprocess.run(["open", url], check=True)
+    elif system == "Linux":
+        opener = shutil.which("xdg-open")
+        if not opener:
+            raise RuntimeError("No browser opener found. Install `xdg-utils`.")
+        subprocess.run([opener, url], check=True)
+    elif system == "Windows":
+        os.startfile(url)  # type: ignore[attr-defined]
+    else:
+        raise RuntimeError(f"Unsupported platform: {system}")
 
 
 def cleanup_preview_file(state: dict[str, Any] | None) -> None:
