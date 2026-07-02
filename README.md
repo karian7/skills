@@ -16,7 +16,8 @@ skills/                              ← 마켓플레이스 (이름: "skills")
             ├── md-preview/
             ├── daum-mail/
             ├── naver-mail/
-            └── netlify/
+            ├── netlify/
+            └── agent-browser/
 ```
 
 ## 설치
@@ -51,6 +52,7 @@ codex plugin marketplace add karian7/skills
 | `karian7:daum-mail` | Daum/Hanmail IMAP — 목록·읽기·검색·초안·휴지통·브리핑. keyring 자격증명 지원 |
 | `karian7:naver-mail` | Naver Mail IMAP — 목록·읽기·검색·초안·휴지통·브리핑. keyring 자격증명 지원 |
 | `karian7:netlify` | 현재 디렉토리 정적 파일을 Netlify CLI로 배포, 완료 후 브라우저 자동 오픈 |
+| `karian7:agent-browser` | agent-browser CLI(Chrome via CDP)로 브라우저 자동화 — 폼 입력, 클릭, 데이터 추출, 스크린샷 |
 
 ## 업데이트
 
