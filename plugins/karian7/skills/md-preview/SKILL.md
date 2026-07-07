@@ -91,7 +91,8 @@ uv run python ~/.claude/skills/md-preview/scripts/md_preview.py start "C:/Users/
 
 - Relative images resolve correctly because the preview file is written next to the source file.
 - `.md` hyperlinks are not rewritten to preview URLs — they remain as-is.
-- Neovim cursor sync, scroll sync, Mermaid, KaTeX, and PlantUML are not supported.
+- Neovim cursor sync, scroll sync, KaTeX, and PlantUML are not supported.
+- Mermaid diagrams are rendered via CDN (`mermaid@11`); requires an internet connection.
 - `pandoc` must be installed before using the skill (`brew install pandoc` on macOS, `winget install JohnMacFarlane.Pandoc` on Windows). If it is missing, stop and report the dependency gap rather than guessing.
 
 ## Resources

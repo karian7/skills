@@ -94,6 +94,17 @@ def inject_assets(preview_path: Path, source_path: Path) -> None:
         '<meta name="robots" content="noindex" />\n'
         f"<style>\n{preview_css}\n</style>\n"
     )
+    mermaid_block = (
+        '<script type="module">\n'
+        '  import mermaid from \'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs\';\n'
+        '  document.querySelectorAll(\'pre.mermaid\').forEach(el => {\n'
+        '    const code = el.querySelector(\'code\');\n'
+        '    if (code) el.innerHTML = code.innerHTML;\n'
+        '  });\n'
+        '  const theme = window.matchMedia(\'(prefers-color-scheme: dark)\').matches ? \'dark\' : \'default\';\n'
+        '  mermaid.initialize({ startOnLoad: true, theme });\n'
+        '</script>\n'
+    )
     script_block = (
         '<script>\n'
         f'window.__MD_PREVIEW_VERSION_URL = "{VERSION_PATH}";\n'
@@ -123,9 +134,9 @@ def inject_assets(preview_path: Path, source_path: Path) -> None:
         preview_html = f"{banner}{preview_html}"
 
     if "</body>" in preview_html:
-        preview_html = preview_html.replace("</body>", f"{banner_close}{script_block}</body>", 1)
+        preview_html = preview_html.replace("</body>", f"{banner_close}{mermaid_block}{script_block}</body>", 1)
     else:
-        preview_html = f"{preview_html}\n{banner_close}\n{script_block}"
+        preview_html = f"{preview_html}\n{banner_close}\n{mermaid_block}\n{script_block}"
 
     write_text(preview_path, preview_html)
 
