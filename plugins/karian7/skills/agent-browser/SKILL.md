@@ -54,6 +54,46 @@ agent-browser snapshot -i       # 4. Re-snapshot after any page change
 
 Refs (`@e1`, `@e2`, …) go stale the moment the page changes. Always re-snapshot before the next ref interaction.
 
+## Concurrency & session isolation
+
+agent-browser runs a **background daemon** that persists between commands and is shared across processes. Commands with **no `--session`** all attach to one global *default* session — so two agents running in parallel without `--session` share a single browser context: cookies, storage, tabs, and navigation bleed across them. This is the top cause of cross-run contamination.
+
+Rules for any skill that may run concurrently:
+
+1. **Always pass a unique `--session`.** Never rely on the default session for parallel work.
+2. **Derive a stable id once, reuse it on every command** in the run:
+   ```bash
+   SESSION="$(agent-browser session id --scope worktree --prefix my-skill)"
+   agent-browser --session "$SESSION" open https://app.example.com
+   agent-browser --session "$SESSION" snapshot -i
+   ```
+   `--scope worktree` keys the id to the Git worktree (falls back to git root, then cwd) — ideal when each parallel run has its own worktree.
+3. **Same worktree, multiple parallel agents → still collide.** `session id` returns the *same* id for the same worktree + prefix. When several sub-agents share one checkout, add a per-agent discriminator to `--prefix`:
+   ```bash
+   SESSION="$(agent-browser session id --scope worktree --prefix "my-skill-$AGENT_ID")"
+   ```
+4. **For full daemon-level isolation** (separate sockets + restore dirs), also set `--namespace`:
+   ```bash
+   agent-browser --namespace "$AGENT_ID" --session "$SESSION" open https://app.example.com
+   ```
+5. **Clean up when done** so a stale session/daemon doesn't leak into the next run:
+   ```bash
+   agent-browser --session "$SESSION" close
+   ```
+
+> `AGENT_BROWSER_SESSION_NAME` does **not** isolate sessions — it is a legacy name for the persisted *state file* only. Use `--session` / `AGENT_BROWSER_SESSION` for isolation, `--namespace` / `AGENT_BROWSER_NAMESPACE` for daemon isolation, and `--restore` for persistence.
+
+Windows (env var 문법이 달라짐):
+```powershell
+# PowerShell — capture the id, then reuse it
+$SESSION = agent-browser session id --scope worktree --prefix "my-skill-$AgentId"
+agent-browser --session $SESSION open https://app.example.com
+
+# CMD
+for /f %i in ('agent-browser session id --scope worktree --prefix my-skill-1') do set SESSION=%i
+agent-browser --session %SESSION% open https://app.example.com
+```
+
 ## Reading a page
 
 ```bash
@@ -116,20 +156,26 @@ agent-browser wait --url "**/dashboard"
 
 macOS / Linux:
 ```bash
+# Explicit portable state file
 agent-browser state save ./auth.json
 agent-browser --state ./auth.json open https://app.example.com
-# or auto-save by name:
-AGENT_BROWSER_SESSION_NAME=my-app agent-browser open https://app.example.com
+
+# Or auto-save/restore keyed to a stable, isolated session (preferred for reusable runs)
+SESSION="$(agent-browser session id --scope worktree --prefix my-app)"
+agent-browser --session "$SESSION" --restore open https://app.example.com
 ```
+
+`--restore` persists and reloads state for the given `--session`; state lives under `~/.agent-browser/sessions/`. Do not use `AGENT_BROWSER_SESSION_NAME` for this — it is a legacy state-file name that does not isolate the browser context (see [Concurrency & session isolation](#concurrency--session-isolation)).
 
 Windows (인라인 env var 문법이 달라짐):
 ```powershell
 # PowerShell
-$env:AGENT_BROWSER_SESSION_NAME = "my-app"
-agent-browser open https://app.example.com
+$SESSION = agent-browser session id --scope worktree --prefix my-app
+agent-browser --session $SESSION --restore open https://app.example.com
 
 # CMD
-set AGENT_BROWSER_SESSION_NAME=my-app && agent-browser open https://app.example.com
+for /f %i in ('agent-browser session id --scope worktree --prefix my-app') do set SESSION=%i
+agent-browser --session %SESSION% --restore open https://app.example.com
 ```
 
 ### Screenshot
