@@ -14,6 +14,7 @@ skills/                              ← 마켓플레이스 (이름: "skills")
         ├── .codex-plugin/plugin.json
         └── skills/
             ├── md-preview/
+            ├── md-to-html/
             ├── daum-mail/
             ├── naver-mail/
             ├── netlify/
@@ -49,6 +50,7 @@ codex plugin marketplace add karian7/skills
 | 스킬 | 설명 |
 |------|------|
 | `karian7:md-preview` | 로컬 Markdown 파일을 pandoc으로 렌더링해 브라우저에서 라이브 프리뷰 |
+| `karian7:md-to-html` | Markdown을 pandoc으로 HTML 변환 — 다크모드·반응형·콜아웃·목차 자동 생성, S3 업로드 공유 지원 |
 | `karian7:daum-mail` | Daum/Hanmail IMAP — 목록·읽기·검색·초안·휴지통·브리핑. keyring 자격증명 지원 |
 | `karian7:naver-mail` | Naver Mail IMAP — 목록·읽기·검색·초안·휴지통·브리핑. keyring 자격증명 지원 |
 | `karian7:netlify` | 현재 디렉토리 정적 파일을 Netlify CLI로 배포, 완료 후 브라우저 자동 오픈 |
