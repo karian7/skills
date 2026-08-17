@@ -46,13 +46,15 @@ agent-browser doctor
 ## Core loop
 
 ```bash
-agent-browser open <url>        # 1. Open a page
-agent-browser snapshot -i       # 2. See interactive elements
-agent-browser click @e3         # 3. Act on refs from the snapshot
-agent-browser snapshot -i       # 4. Re-snapshot after any page change
+agent-browser --session "ab-$CLAUDE_CODE_SESSION_ID" open <url>        # 1. Open a page
+agent-browser --session "ab-$CLAUDE_CODE_SESSION_ID" snapshot -i       # 2. See interactive elements
+agent-browser --session "ab-$CLAUDE_CODE_SESSION_ID" click @e3         # 3. Act on refs from the snapshot
+agent-browser --session "ab-$CLAUDE_CODE_SESSION_ID" snapshot -i       # 4. Re-snapshot after any page change
 ```
 
 Refs (`@e1`, `@e2`, …) go stale the moment the page changes. Always re-snapshot before the next ref interaction.
+
+`--session` is required on **every** command — see [Concurrency & session isolation](#concurrency--session-isolation) for how to pick the id (and when the inline pattern above is not enough). Examples in the rest of this document omit it for brevity only.
 
 ## Concurrency & session isolation
 
@@ -61,37 +63,41 @@ agent-browser runs a **background daemon** that persists between commands and is
 Rules for any skill that may run concurrently:
 
 1. **Always pass a unique `--session`.** Never rely on the default session for parallel work.
-2. **Derive a stable id once, reuse it on every command** in the run:
+2. **Base the id on `$CLAUDE_CODE_SESSION_ID`, inline in every command.** Claude Code sets it in each Bash call, unique per session — and because agent harnesses spawn a **fresh shell per tool call**, a captured `SESSION="$(...)"` variable is gone by the next command, while an env-var-based id re-derives identically every time:
    ```bash
-   SESSION="$(agent-browser session id --scope worktree --prefix my-skill)"
-   agent-browser --session "$SESSION" open https://app.example.com
-   agent-browser --session "$SESSION" snapshot -i
+   agent-browser --session "my-skill-$CLAUDE_CODE_SESSION_ID" open https://app.example.com
+   agent-browser --session "my-skill-$CLAUDE_CODE_SESSION_ID" snapshot -i
    ```
-   `--scope worktree` keys the id to the Git worktree (falls back to git root, then cwd) — ideal when each parallel run has its own worktree.
-3. **Same worktree, multiple parallel agents → still collide.** `session id` returns the *same* id for the same worktree + prefix. When several sub-agents share one checkout, add a per-agent discriminator to `--prefix`:
+   Harness without that env var (e.g. Codex): mint an id **once** with entropy, then reuse the printed literal verbatim in every later command:
    ```bash
-   SESSION="$(agent-browser session id --scope worktree --prefix "my-skill-$AGENT_ID")"
+   echo "my-skill-$(date +%s)-$$"     # e.g. my-skill-1755400000-4131
    ```
-4. **For full daemon-level isolation** (separate sockets + restore dirs), also set `--namespace`:
+3. **Parallel sub-agents inside one session still collide** — every sub-agent sees the *same* `CLAUDE_CODE_SESSION_ID`. Each sub-agent must mint its own id (entropy pattern above, once) and reuse the printed literal on every command:
    ```bash
-   agent-browser --namespace "$AGENT_ID" --session "$SESSION" open https://app.example.com
+   echo "my-skill-$CLAUDE_CODE_SESSION_ID-$(date +%s)-$$"
    ```
-5. **Clean up when done** so a stale session/daemon doesn't leak into the next run:
+4. **`agent-browser session id --scope worktree` is for stable ids, not isolation.** It returns the *same* id for the same worktree + prefix — use it when you *want* to reuse state across runs (`--restore`, saved logins), never to separate parallel runs sharing one checkout.
+5. **For full daemon-level isolation** (separate sockets + restore dirs), also set `--namespace` with the same id:
    ```bash
-   agent-browser --session "$SESSION" close
+   agent-browser --namespace "my-skill-$CLAUDE_CODE_SESSION_ID" --session "my-skill-$CLAUDE_CODE_SESSION_ID" open https://app.example.com
+   ```
+6. **Clean up when done** so a stale session/daemon doesn't leak into the next run:
+   ```bash
+   agent-browser --session "my-skill-$CLAUDE_CODE_SESSION_ID" close
    ```
 
 > `AGENT_BROWSER_SESSION_NAME` does **not** isolate sessions — it is a legacy name for the persisted *state file* only. Use `--session` / `AGENT_BROWSER_SESSION` for isolation, `--namespace` / `AGENT_BROWSER_NAMESPACE` for daemon isolation, and `--restore` for persistence.
 
 Windows (env var 문법이 달라짐):
 ```powershell
-# PowerShell — capture the id, then reuse it
-$SESSION = agent-browser session id --scope worktree --prefix "my-skill-$AgentId"
-agent-browser --session $SESSION open https://app.example.com
+# PowerShell — 세션 고유 id를 인라인으로
+agent-browser --session "my-skill-$env:CLAUDE_CODE_SESSION_ID" open https://app.example.com
+
+# PowerShell — 병렬 서브에이전트: 1회 출력 후 리터럴 재사용
+"my-skill-$env:CLAUDE_CODE_SESSION_ID-$(Get-Random)"
 
 # CMD
-for /f %i in ('agent-browser session id --scope worktree --prefix my-skill-1') do set SESSION=%i
-agent-browser --session %SESSION% open https://app.example.com
+agent-browser --session my-skill-%CLAUDE_CODE_SESSION_ID% open https://app.example.com
 ```
 
 ## Reading a page
@@ -166,6 +172,8 @@ agent-browser --session "$SESSION" --restore open https://app.example.com
 ```
 
 `--restore` persists and reloads state for the given `--session`; state lives under `~/.agent-browser/sessions/`. Do not use `AGENT_BROWSER_SESSION_NAME` for this — it is a legacy state-file name that does not isolate the browser context (see [Concurrency & session isolation](#concurrency--session-isolation)).
+
+A worktree-scoped id is *deliberately* stable: parallel runs in the same checkout share this session and its saved logins. Good for auth reuse, wrong for parallel isolation — for that, use the session-unique ids from the concurrency section.
 
 Windows (인라인 env var 문법이 달라짐):
 ```powershell
