@@ -84,8 +84,11 @@ netlify deploy --prod --dir .
 
 `--dir .` 는 현재 디렉토리 기준. 빌드 결과물이 `dist/` 또는 `build/` 에 있으면 해당 경로로 변경.
 
-**이름 충돌** — `site name is already taken` 으로 실패하면 접미사를 붙인 새 후보 3개
-(`-app`, `-web`, 연도·조직명 등)로 AskUserQuestion 을 다시 띄운다. 임의로 이름을 바꿔 재시도하지 않는다.
+**이름 충돌** — `--site-name` 은 실패하지 않는다. 이름이 선점돼 있으면 CLI 가 랜덤 8자리 hex 를 붙여
+(`Site name "X" is taken. Retrying with "X-3f2a9b1c"...`) 그 이름으로 **새 사이트를 만들어버린다**.
+따라서 배포 출력의 `Website URL` 을 읽어 요청한 이름과 다르면 사용자에게 실제 URL을 알린다.
+접미사가 붙은 URL이 마음에 들지 않으면 새 후보로 AskUserQuestion 을 다시 띄우고, 재배포 전
+`.netlify/state.json` 을 지운 뒤(`trash .netlify`) 새 `--site-name` 으로 실행한다.
 
 ### 3. 배포 후 브라우저 열기
 
@@ -127,11 +130,24 @@ Start-Process "https://$SITE_NAME.netlify.app"
 
 ## 기존 사이트 재배포
 
-`netlify.toml` 이 있거나 `.netlify/state.json` 에 사이트 ID가 있으면 이름을 묻지 않고 `--site-name` 없이 실행:
+배포에 성공하면 CLI 가 **현재 디렉토리**에 `.netlify/state.json` 을 만들고 사이트 ID를 남긴다:
+
+```json
+{ "siteId": "6d4a…" }
+```
+
+이후 실행은 이 파일을 읽어 같은 사이트로 배포하므로, 이름을 묻지 말고 그대로 실행한다:
 
 ```bash
 netlify deploy --prod --dir .
 ```
+
+- 링크 여부는 `netlify status` 로 확인한다.
+- `state.json` 은 `--dir dist` 로 배포해도 **현재 디렉토리** 기준으로 생긴다. 다른 디렉토리에서 실행하면 링크를 못 찾는다.
+- 링크가 없는 디렉토리에서 기존 사이트에 배포하려면 `--site-name` 이 아니라 `--site <이름-또는-ID>` 를 쓴다.
+  `--site-name` 은 기존 사이트를 재사용하지 않고 접미사 붙은 새 사이트를 만든다.
+- git 저장소라면 `.gitignore` 에 `.netlify` 를 추가한다 — `deploy` 경로에서는 CLI 가 자동으로 넣어주지 않는다
+  (`init`/`link`/`dev` 만 넣는다).
 
 ## 주의
 

@@ -10,7 +10,7 @@
       "name": "karian7",
       "source": "./plugins/karian7",
       "description": "Koasu의 통합 스킬 모음",
-      "version": "0.3.0"
+      "version": "0.3.1"
     }
   ]
 }
