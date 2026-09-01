@@ -21,6 +21,7 @@
     uv run naver_search.py --query "A" --query "B" --pages 3
     uv run naver_search.py --query "정책명" --from 20260101 --to 20260901
     uv run naver_search.py --query "키워드" --format json --out result.json
+    uv run naver_search.py --query "키워드" --where web      # 웹문서 탭(공고·기관 페이지)
     uv run naver_search.py --query "키워드" --where blog     # 실험적
 """
 
@@ -318,8 +319,8 @@ def render_table(items: list[dict]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="네이버 검색 SERP 수집")
     parser.add_argument("--query", action="append", required=True, help="검색 키워드(반복 가능)")
-    parser.add_argument("--where", default="news", choices=("news", "blog", "view"),
-                        help="검색 버티컬. news가 검증된 경로(기본), blog·view는 best-effort")
+    parser.add_argument("--where", default="news", choices=("news", "web", "blog", "view"),
+                        help="검색 버티컬. news(기본)·web이 검증된 경로, blog·view는 best-effort")
     parser.add_argument("--from", dest="date_from", help="게시일 시작 YYYYMMDD (news 전용)")
     parser.add_argument("--to", dest="date_to", help="게시일 끝 YYYYMMDD (news 전용)")
     parser.add_argument("--pages", type=int, default=2, help="키워드당 SERP 페이지 수 (기본 2 = 20건)")
