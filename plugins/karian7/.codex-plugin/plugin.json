@@ -1,6 +1,6 @@
 {
   "name": "karian7",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Koasu(karian7) 의 통합 스킬 플러그인",
   "author": {
     "name": "karian7",
@@ -15,9 +15,24 @@
   "interface": {
     "displayName": "Koasu Skills",
     "shortDescription": "개인 스킬 통합 플러그인",
-    "longDescription": "Koasu(karian7) 가 일상적으로 사용하는 스킬들을 모은 플러그인. 첫 스킬: md-preview.",
+    "longDescription": "브라우저 자동화, 메일 관리, Markdown 미리보기·HTML 변환, 웹 조사, 정적 사이트 배포를 포함한 Koasu(karian7)의 개인 생산성 스킬 모음.",
     "developerName": "karian7",
     "category": "Productivity",
-    "capabilities": ["Interactive"]
+    "capabilities": [
+      "Browser automation",
+      "Email workflows",
+      "Markdown conversion",
+      "Web research",
+      "Static site deployment"
+    ],
+    "websiteURL": "https://github.com/karian7/skills",
+    "defaultPrompt": [
+      "마크다운 파일을 브라우저에서 미리 보여줘",
+      "이 마크다운 문서를 반응형 HTML로 변환해줘",
+      "네이버 뉴스와 공식 자료를 교차 조사해줘"
+    ],
+    "brandColor": "#1D4ED8",
+    "composerIcon": "./assets/icon.svg",
+    "logo": "./assets/logo.svg"
   }
 }

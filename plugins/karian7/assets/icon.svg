@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">Koasu Skills icon</title>
+  <desc id="description">A white K and seven-point spark on a blue square.</desc>
+  <rect width="512" height="512" rx="112" fill="#1D4ED8"/>
+  <path d="M138 116h70v112l102-112h90L274 250l134 146h-94L208 276v120h-70V116Z" fill="#FFFFFF"/>
+  <path d="m386 72 12 31 31 12-31 12-12 31-12-31-31-12 31-12 12-31Z" fill="#FDE68A"/>
+</svg>
