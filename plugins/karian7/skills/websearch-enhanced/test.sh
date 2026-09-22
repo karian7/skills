@@ -60,6 +60,16 @@ else
   fail "web search collected >=1 item"
 fi
 
+# [Test 5] 순수 함수 단위 테스트 (네트워크 불필요)
+echo "[Test 5] unit tests for pure helpers"
+for unit in url_rules_test.py naver_search_test.py fetch_article_test.py; do
+  if (cd "$SCRIPT_DIR" && uv run "$unit" >/dev/null 2>&1); then
+    pass "$unit"
+  else
+    fail "$unit"
+  fi
+done
+
 echo ""
 echo "=== Result: $PASS passed, $FAIL failed ==="
 [ $FAIL -eq 0 ] && exit 0 || exit 1

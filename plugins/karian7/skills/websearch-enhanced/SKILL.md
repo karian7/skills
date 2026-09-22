@@ -203,6 +203,9 @@ uv run ${CLAUDE_PLUGIN_ROOT}/skills/websearch-enhanced/scripts/coverage.py \
 | `--where` | `news`(기본)·`web` — 검증됨 / `blog`·`view` — best-effort |
 | `--format` | `table`(기본) / `json` |
 | `--out FILE` | 파일로 저장, stdout에는 요약만 |
+| `--engine` | `auto`(기본)·`requests`·`browser` |
+| `--session NAME` | agent-browser 세션 이름 (병렬 서브에이전트용, 아래 참고) |
+| `--keep-session` | 수집 후 브라우저를 닫지 않는다 |
 
 `fetch_article.py`
 
@@ -211,6 +214,9 @@ uv run ${CLAUDE_PLUGIN_ROOT}/skills/websearch-enhanced/scripts/coverage.py \
 | `--raw` | 언론사 셀렉터를 건너뛰고 페이지 전체 추출 (공식 사이트용) |
 | `--chars N` | 기사당 최대 글자 수 (기본 6000) |
 | `--out-dir DIR` | 기사별 .txt로 저장 |
+| `--no-browser` | 정적 수집이 실패해도 브라우저 폴백을 쓰지 않는다 |
+| `--session NAME` | agent-browser 세션 이름 (병렬 서브에이전트용) |
+| `--keep-session` | 폴백 후 브라우저를 닫지 않는다 |
 
 `coverage.py`
 
@@ -221,13 +227,51 @@ uv run ${CLAUDE_PLUGIN_ROOT}/skills/websearch-enhanced/scripts/coverage.py \
 | `--strict` | 띄어쓰기·하이픈 차이를 구별 (기본은 무시하고 같은 것으로 봄) |
 | `--json` | JSON 출력 |
 
+## 브라우저 경로는 언제 켜지나
+
+두 스크립트 모두 **requests가 코어, agent-browser가 폴백**이다. 브라우저는 느리고
+프로세스 밖 상태를 잡으므로 필요할 때만 켠다.
+
+| 상황 | 대응 | 근거 |
+|---|---|---|
+| SERP가 전 키워드 0건 | `naver_search.py`가 자동 폴백 | 마크업 변경 신호 |
+| `--where web` 폴백 | 웹문서 탭 전용 추출기(`naver_serp_web.js`) | 뉴스 탭 추출기는 웹문서 탭에서 **항상 0건** (2026-09-22 실측) |
+| 본문이 300자 미만 + 컨테이너 미검출 | `fetch_article.py`가 자동 폴백 | SPA 셸·iframe 본문 |
+| 데스크톱 네이버 블로그 URL | **브라우저 없이** 모바일 주소로 정규화 | `blog.naver.com/...` 0자 → `m.blog...` 3334자 (실측) |
+| `cafe.naver.com` | 경고만 하고 넘어감 | 로그인 없이는 어떤 경로로도 못 읽음 |
+
+URL 정규화를 폴백보다 먼저 거는 이유는 비용이다. 주소만 바꿔 해결되는 건에
+브라우저를 띄우지 않는다.
+
+### 동시성 — 세션 이름을 고유하게
+
+agent-browser는 **프로세스 밖에 데몬을 남기고 세션 단위로 쿠키·탭을 공유한다.**
+세션 이름이 같으면 서로 다른 Claude 세션끼리 탭을 빼앗는다.
+
+기본값은 `naver-search-$CLAUDE_CODE_SESSION_ID`라 Claude 세션끼리는 자동으로 갈린다.
+**같은 Claude 세션 안에서 서브에이전트를 병렬로 돌릴 때는** 환경변수가 같으므로
+각자 고유 이름을 명시해야 한다.
+
+```bash
+# 서브에이전트마다 한 번 만들어 그 리터럴을 계속 쓴다
+echo "wse-$CLAUDE_CODE_SESSION_ID-$(date +%s)-$$"
+
+uv run ${CLAUDE_PLUGIN_ROOT}/skills/websearch-enhanced/scripts/naver_search.py \
+  --query "키워드" --where web --session wse-<위에서 찍힌 값>
+```
+
+`fetch_article.py`도 같은 `--session`을 받는다. 브라우저 폴백은 세션 하나를
+공유하므로 **병렬 수집이 끝난 뒤 순차로** 돈다 — 여러 URL을 한 번에 넘겨도 안전하다.
+
 ## 막혔을 때
 
 - **전 키워드 0건** — 네이버 마크업이 바뀌었을 수 있다. `agent-browser`가 설치돼
   있으면 자동으로 폴백한다(`pnpm add -g agent-browser`). 폴백도 0건이면
   `naver_search.py`의 `RE_TITLE` 등 정규식이 실제 HTML과 맞는지 확인해야 한다.
 - **특정 키워드만 0건** — 표기 문제다. 스크립트가 아니라 키워드를 고쳐라.
-- **기사 본문이 안 나옴** — 로그인·유료 장벽이 있는 매체다. 다른 매체의 같은 사건
-  기사로 대체하는 편이 빠르다.
+- **기사 본문이 안 나옴** — `fetch_article.py`가 알아서 두 단계를 먼저 밟는다.
+  ① URL 정규화 ② 그래도 얇으면 agent-browser 폴백. 그 뒤에도 안 나오면 로그인·유료
+  장벽이다. 다른 매체의 같은 사건 기사로 대체하는 편이 빠르다.
+  `cafe.naver.com`은 로그인 없이는 어떤 경로로도 안 열리니 시도하지 마라.
 - **`coverage.py`가 다 MISSING** — 문서가 NFD로 저장돼 있어도 스크립트가 NFC로
   정규화하니 정상이면 그럴 수 없다. 키워드가 본문 표기와 다른지부터 보라.
