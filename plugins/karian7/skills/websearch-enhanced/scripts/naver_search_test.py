@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from naver_search import session_name, snippet_path
+from naver_search import is_skippable, session_name, snippet_path
 
 
 class SessionNameTest(unittest.TestCase):
@@ -47,6 +47,46 @@ class SnippetPathTest(unittest.TestCase):
     def test_both_extractors_exist_on_disk(self) -> None:
         self.assertTrue(snippet_path("news").exists())
         self.assertTrue(snippet_path("web").exists())
+
+
+class SkippableHostTest(unittest.TestCase):
+    """네이버 자체 내비게이션만 버리고, 콘텐츠 호스트는 검색 결과로 남긴다."""
+
+    def test_navigation_hosts_are_skipped(self) -> None:
+        for url in (
+            "https://search.naver.com/search.naver?query=x",
+            "https://nid.naver.com/nidlogin.login",
+            "https://keep.naver.com/",
+            "https://m.notify.naver.com/?from=pcmain",
+            "https://help.naver.com/service/5627",
+            "https://www.naver.com/more.html",
+        ):
+            with self.subTest(url=url):
+                self.assertTrue(is_skippable(url))
+
+    def test_cafe_result_is_kept(self) -> None:
+        # 카페 버티컬의 결과 자체다. 버리면 --where article 이 항상 0건이 된다.
+        self.assertFalse(is_skippable("https://cafe.naver.com/dokchi/13132989?art=eyJhbGciOi.p.s"))
+
+    def test_blog_and_post_results_are_kept(self) -> None:
+        self.assertFalse(is_skippable("https://blog.naver.com/spartaclub/223966332768"))
+        self.assertFalse(is_skippable("https://m.blog.naver.com/spartaclub/223966332768"))
+        self.assertFalse(is_skippable("https://post.naver.com/viewer/postView.naver?volumeNo=1"))
+
+    def test_naver_news_article_is_kept(self) -> None:
+        self.assertFalse(is_skippable("https://n.news.naver.com/mnews/article/001/0001"))
+
+    def test_shortener_and_shopping_are_skipped(self) -> None:
+        self.assertTrue(is_skippable("https://naver.me/abcdefg"))
+        self.assertTrue(is_skippable("https://malls.example.com/item"))
+
+    def test_external_site_is_kept(self) -> None:
+        self.assertFalse(is_skippable("https://www.etnews.com/20260604000056"))
+
+
+class ArticleVerticalTest(unittest.TestCase):
+    def test_article_vertical_uses_web_extractor(self) -> None:
+        self.assertEqual(snippet_path("article").name, "naver_serp_web.js")
 
 
 if __name__ == "__main__":

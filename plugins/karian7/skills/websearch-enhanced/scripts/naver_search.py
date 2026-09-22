@@ -105,9 +105,22 @@ RE_ANCHOR_TITLE = re.compile(r'<a[^>]+href="(https?://[^"]+)"[^>]*data-heatmap-t
 RE_ANY_ANCHOR = re.compile(r'<a[^>]+href="(https?://[^"]+)"')
 
 RE_DATE_LABEL = re.compile(r"^\d+(?:분|시간|일|주|개월)\s*전$|^\d{4}\.\d{2}\.\d{2}\.?$")
-RE_SKIP_HOST = re.compile(
-    r"(keep|help|search|nid|note|blog|cafe|shopping|m)\.naver\.com|naver\.me|malls\."
-)
+
+# 네이버 호스트는 기본 제외하되, 검색 결과로 유효한 콘텐츠 호스트는 남긴다.
+# 예전 규칙은 blog·cafe 를 통째로 버려서, 그 버티컬을 검색해도 결과가 0건이 됐다.
+RE_NAVER_HOST = re.compile(r"(^|\.)naver\.com$")
+RE_NAVER_CONTENT = re.compile(r"^(m\.|n\.)?(blog|post|cafe|news|kin|terms|in)\.naver\.com$")
+RE_SKIP_URL = re.compile(r"naver\.me|malls\.")
+
+
+def is_skippable(url: str) -> bool:
+    """검색 결과가 아니라 네이버 자체 내비게이션·단축링크인가."""
+    if RE_SKIP_URL.search(url):
+        return True
+    host = urllib.parse.urlsplit(url).netloc.lower()
+    if RE_NAVER_HOST.search(host):
+        return not RE_NAVER_CONTENT.match(host)
+    return False
 
 
 def log(msg: str) -> None:
@@ -169,7 +182,7 @@ def parse_serp(body: str) -> list[dict]:
 
     marked = sorted(anchors_from(RE_TITLE_ANCHOR) + anchors_from(RE_ANCHOR_TITLE))
     # .tit 마커가 제목 수에 못 미치면(blog·view) 일반 앵커로 보충한다.
-    fallback = sorted(a for a in anchors_from(RE_ANY_ANCHOR) if not RE_SKIP_HOST.search(a[1]))
+    fallback = sorted(a for a in anchors_from(RE_ANY_ANCHOR) if not is_skippable(a[1]))
     anchors = marked if len(marked) >= len(titles) else sorted(set(marked + fallback))
 
     items: list[dict] = []
@@ -177,7 +190,7 @@ def parse_serp(body: str) -> list[dict]:
     for index, (position, title) in enumerate(titles):
         previous = titles[index - 1][0] if index else -1
         url = next((u for p, u in reversed(anchors) if p < position), "")
-        if not title or not url or RE_SKIP_HOST.search(url) or url in seen:
+        if not title or not url or is_skippable(url) or url in seen:
             continue
         seen.add(url)
         press = next((v for p, v in reversed(presses) if p < position), "")
@@ -346,8 +359,10 @@ def render_table(items: list[dict]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser(description="네이버 검색 SERP 수집")
     parser.add_argument("--query", action="append", required=True, help="검색 키워드(반복 가능)")
-    parser.add_argument("--where", default="news", choices=("news", "web", "blog", "view"),
-                        help="검색 버티컬. news(기본)·web이 검증된 경로, blog·view는 best-effort")
+    parser.add_argument("--where", default="news",
+                        choices=("news", "web", "article", "blog", "view"),
+                        help="검색 버티컬. news(기본)·web·article(카페)이 검증된 경로, "
+                             "blog·view는 best-effort")
     parser.add_argument("--from", dest="date_from", help="게시일 시작 YYYYMMDD (news 전용)")
     parser.add_argument("--to", dest="date_to", help="게시일 끝 YYYYMMDD (news 전용)")
     parser.add_argument("--pages", type=int, default=2, help="키워드당 SERP 페이지 수 (기본 2 = 20건)")
