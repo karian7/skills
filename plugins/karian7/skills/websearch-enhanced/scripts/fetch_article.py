@@ -25,6 +25,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import json
+import os
 import re
 import sys
 import unicodedata
@@ -33,6 +36,11 @@ from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
+
+from naver_search import find_agent_browser, run, session_name
+from url_rules import canonical_url, is_login_walled
+
+PAGE_TEXT_JS = Path(__file__).resolve().parent / "page_text.js"
 
 for _stream in (sys.stdout, sys.stderr):
     _reconfigure = getattr(_stream, "reconfigure", None)
@@ -70,6 +78,35 @@ SITE_CUT_MARKERS = [
     "Copyright ©", "COPYRIGHT", "뉴스레터 구독", "문의하기", "Contact us",
 ]
 MIN_BODY_CHARS = 300
+
+# 이 밑이면 정적 수집이 껍데기만 받아온 것으로 본다(JS 렌더링·iframe·봇 차단).
+THIN_BODY_CHARS = 300
+
+RE_CHARS_HEADER = re.compile(r"^CHARS: (\d+)$", re.M)
+RE_SELECTOR_HEADER = re.compile(r"^SELECTOR: (.+)$", re.M)
+
+
+def body_chars(rendered: str) -> int | None:
+    """extract() 출력 머리의 CHARS 값. 오류 출력이면 None."""
+    matched = RE_CHARS_HEADER.search(rendered)
+    return int(matched[1]) if matched else None
+
+
+def needs_browser(rendered: str) -> bool:
+    """정적 수집이 실패했으니 브라우저로 다시 받아야 하는가.
+
+    네트워크 오류는 브라우저로 바꿔도 같은 결과라 재시도하지 않는다. 매체 CMS
+    컨테이너를 찾은 건은 짧아도 그게 본문이다(단신). 컨테이너를 못 찾았는데
+    본문까지 얇으면 껍데기를 받은 것이다 — 데스크톱 네이버 블로그가 전형적이다
+    (2026-09-22 실측: CHARS 0).
+    """
+    chars = body_chars(rendered)
+    if chars is None:
+        return False
+    selector = RE_SELECTOR_HEADER.search(rendered)
+    if selector and not selector[1].startswith(("fallback:", "raw:")):
+        return False
+    return chars < THIN_BODY_CHARS
 
 
 def strip_boilerplate(text: str, markers: list[str] = CUT_MARKERS) -> str:
@@ -126,6 +163,61 @@ def extract(url: str, limit: int, raw: bool = False) -> str:
     return f"{header}\n{'-' * 80}\n{text[:limit]}"
 
 
+def browser_extract(binary: str, session: str, url: str, limit: int, raw: bool) -> str:
+    """agent-browser 로 렌더링된 본문을 받는다. 정적 경로가 실패한 URL 에만 쓴다.
+
+    ⚠️ 브라우저 세션 하나를 공유하므로 **순차로만** 호출한다. 병렬로 부르면
+    같은 탭을 서로 다른 URL 로 옮겨 결과가 섞인다.
+    """
+    if not PAGE_TEXT_JS.exists():
+        return f"[ERR] {PAGE_TEXT_JS.name} 없음 — 브라우저 폴백 불가"
+    opened = run(binary, session, ["open", url], timeout=60)
+    if opened.returncode != 0:
+        return f"[ERR] browser open: {opened.stderr.strip()[:200]}"
+    run(binary, session, ["wait", "--load", "networkidle"], timeout=30)
+    snippet_b64 = base64.b64encode(PAGE_TEXT_JS.read_bytes()).decode("ascii")
+    result = run(binary, session, ["eval", "-b", snippet_b64], timeout=60)
+    if result.returncode != 0:
+        return f"[ERR] browser eval: {result.stderr.strip()[:200]}"
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return f"[ERR] browser JSON 파싱 실패: {result.stdout.strip()[:200]}"
+
+    text = unicodedata.normalize("NFC", re.sub(r"\n{2,}", "\n", str(payload.get("text", ""))))
+    text = strip_boilerplate(text, CUT_MARKERS + SITE_CUT_MARKERS) if raw else strip_boilerplate(text)
+    header = (f"TITLE: {payload.get('title', '')}\n"
+              f"SELECTOR: browser:{payload.get('source', '?')}\n"
+              f"CHARS: {len(text)}")
+    return f"{header}\n{'-' * 80}\n{text[:limit]}"
+
+
+def rescue_with_browser(urls: list[str], results: list[str], limit: int, raw: bool,
+                        session: str, keep_session: bool) -> None:
+    """정적 수집이 얇게 끝난 항목만 골라 브라우저로 다시 받는다. results 를 제자리 수정."""
+    targets = [i for i, body in enumerate(results) if needs_browser(body)]
+    if not targets:
+        return
+    binary = find_agent_browser()
+    if not binary:
+        print(f"[WARN] 정적 수집이 얇은 {len(targets)}건이 있지만 agent-browser 가 없습니다. "
+              "`pnpm add -g agent-browser` 로 설치하면 폴백이 생깁니다.", file=sys.stderr)
+        return
+    print(f"[INFO] 브라우저 폴백 {len(targets)}건 · 세션 {session}", file=sys.stderr)
+    try:
+        for index in targets:
+            rescued = browser_extract(binary, session, urls[index], limit, raw)
+            before, after = body_chars(results[index]) or 0, body_chars(rescued)
+            if after is not None and after > before:
+                results[index] = rescued
+                print(f"[INFO] {urls[index][:70]} → {before}자 → {after}자", file=sys.stderr)
+            else:
+                print(f"[WARN] {urls[index][:70]} → 브라우저도 개선 없음", file=sys.stderr)
+    finally:
+        if not keep_session:
+            run(binary, session, ["close"], timeout=30)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="기사 URL → 본문 텍스트")
     parser.add_argument("urls", nargs="+", help="기사 URL(여러 개 가능, 병렬 수집)")
@@ -136,16 +228,34 @@ def main() -> int:
         action="store_true",
         help="언론사 셀렉터를 건너뛰고 페이지 전체를 뽑는다 (공식 사이트·기업 뉴스룸용)",
     )
+    parser.add_argument("--no-browser", action="store_true",
+                        help="정적 수집이 실패해도 agent-browser 폴백을 쓰지 않는다")
+    parser.add_argument("--keep-session", action="store_true", help="폴백 후 브라우저를 닫지 않는다")
+    parser.add_argument("--session", help="agent-browser 세션 이름(병렬 서브에이전트용)")
     args = parser.parse_args()
 
-    with ThreadPoolExecutor(max_workers=min(8, len(args.urls))) as pool:
-        results = list(pool.map(lambda u: extract(u, args.chars, args.raw), args.urls))
+    urls: list[str] = []
+    for raw_url in args.urls:
+        fixed = canonical_url(raw_url)
+        if fixed != raw_url:
+            print(f"[INFO] URL 정규화: {raw_url} → {fixed}", file=sys.stderr)
+        if is_login_walled(fixed):
+            print(f"[WARN] 로그인 필요 호스트라 본문을 못 읽습니다: {fixed}", file=sys.stderr)
+        urls.append(fixed)
+
+    with ThreadPoolExecutor(max_workers=min(8, len(urls))) as pool:
+        results = list(pool.map(lambda u: extract(u, args.chars, args.raw), urls))
+
+    if not args.no_browser:
+        rescue_with_browser(urls, results, args.chars, args.raw,
+                            session_name(args.session, os.environ.get("CLAUDE_CODE_SESSION_ID")),
+                            args.keep_session)
 
     out_dir = Path(args.out_dir) if args.out_dir else None
     if out_dir:
         out_dir.mkdir(parents=True, exist_ok=True)
 
-    for index, (url, body) in enumerate(zip(args.urls, results), 1):
+    for index, (url, body) in enumerate(zip(urls, results), 1):
         if out_dir:
             path = out_dir / f"article-{index:02d}.txt"
             path.write_text(f"URL: {url}\n{body}\n", encoding="utf-8")
