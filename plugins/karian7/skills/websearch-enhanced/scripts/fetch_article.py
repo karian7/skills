@@ -38,7 +38,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from naver_search import find_agent_browser, run, session_name
-from url_rules import canonical_url, is_login_walled
+from url_rules import canonical_url, is_login_walled, needs_rendering
 
 PAGE_TEXT_JS = Path(__file__).resolve().parent / "page_text.js"
 
@@ -92,17 +92,27 @@ def body_chars(rendered: str) -> int | None:
     return int(matched[1]) if matched else None
 
 
-def needs_browser(rendered: str) -> bool:
+def needs_browser(rendered: str, url: str = "") -> bool:
     """정적 수집이 실패했으니 브라우저로 다시 받아야 하는가.
 
     네트워크 오류는 브라우저로 바꿔도 같은 결과라 재시도하지 않는다. 매체 CMS
     컨테이너를 찾은 건은 짧아도 그게 본문이다(단신). 컨테이너를 못 찾았는데
     본문까지 얇으면 껍데기를 받은 것이다 — 데스크톱 네이버 블로그가 전형적이다
     (2026-09-22 실측: CHARS 0).
+
+    글자 수 임계값은 **얇은 껍데기만** 잡는다. 본문을 iframe 에 넣는 호스트는
+    게시글 없이도 뚱뚱한 응답을 내므로 `url` 을 받아 호스트 규칙으로 따로 건다
+    (카페 데스크톱: 게시글 0자인데 전체 8802자).
     """
     chars = body_chars(rendered)
     if chars is None:
         return False
+    if url and is_login_walled(url):
+        # 브라우저를 띄워도 로그인 페이지만 받는다(실측 1582자). 그걸 본문으로 채택하면
+        # 정적 껍데기보다 나쁘다 — 읽는 사람이 글이 그렇게 생긴 줄 안다.
+        return False
+    if url and needs_rendering(url):
+        return True
     selector = RE_SELECTOR_HEADER.search(rendered)
     if selector and not selector[1].startswith(("fallback:", "raw:")):
         return False
@@ -163,6 +173,19 @@ def extract(url: str, limit: int, raw: bool = False) -> str:
     return f"{header}\n{'-' * 80}\n{text[:limit]}"
 
 
+def should_replace(before: int, after: int | None, url: str) -> bool:
+    """브라우저 결과로 정적 결과를 갈아끼울 것인가.
+
+    보통은 더 길게 뽑았을 때만 바꾼다 — 브라우저가 로그인 페이지로 튕기거나 빈손이면
+    정적 결과가 낫기 때문이다. 다만 본문이 iframe 안에 있는 호스트에서는 길이 비교가
+    거꾸로 작동한다: 카페 껍데기 8802자가 본문 799자를 늘 이긴다. 그런 호스트에서는
+    브라우저가 무엇이든 건져오면 그쪽이 본문이다.
+    """
+    if after is None or after <= 0:
+        return False
+    return after > before or needs_rendering(url)
+
+
 def browser_extract(binary: str, session: str, url: str, limit: int, raw: bool) -> str:
     """agent-browser 로 렌더링된 본문을 받는다. 정적 경로가 실패한 URL 에만 쓴다.
 
@@ -195,7 +218,7 @@ def browser_extract(binary: str, session: str, url: str, limit: int, raw: bool) 
 def rescue_with_browser(urls: list[str], results: list[str], limit: int, raw: bool,
                         session: str, keep_session: bool) -> None:
     """정적 수집이 얇게 끝난 항목만 골라 브라우저로 다시 받는다. results 를 제자리 수정."""
-    targets = [i for i, body in enumerate(results) if needs_browser(body)]
+    targets = [i for i, body in enumerate(results) if needs_browser(body, urls[i])]
     if not targets:
         return
     binary = find_agent_browser()
@@ -208,7 +231,7 @@ def rescue_with_browser(urls: list[str], results: list[str], limit: int, raw: bo
         for index in targets:
             rescued = browser_extract(binary, session, urls[index], limit, raw)
             before, after = body_chars(results[index]) or 0, body_chars(rescued)
-            if after is not None and after > before:
+            if should_replace(before, after, urls[index]):
                 results[index] = rescued
                 print(f"[INFO] {urls[index][:70]} → {before}자 → {after}자", file=sys.stderr)
             else:
