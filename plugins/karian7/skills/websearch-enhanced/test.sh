@@ -70,6 +70,22 @@ for unit in url_rules_test.py naver_search_test.py fetch_article_test.py; do
   fi
 done
 
+# [Test 6] 카페 버티컬이 art 토큰이 붙은 링크를 수집한다
+#   토큰 없는 카페 URL 은 로그인 벽에 막힌다. 수집 단계에서 토큰을 잃으면 본문을 못 읽는다.
+echo "[Test 6] article vertical keeps art tokens"
+if uv run "$SCRIPT_DIR/naver_search.py" --query "취업 후기" --pages 1 \
+    --where article --format json --out "$TMP_DIR/cafe.json" >/dev/null 2>&1 \
+    && python3 -c "
+import json, sys
+items = json.load(open('$TMP_DIR/cafe.json'))
+cafe = [i for i in items if 'cafe.naver.com' in i['url']]
+sys.exit(0 if cafe and all('art=' in i['url'] for i in cafe) else 1)
+" 2>/dev/null; then
+  pass "cafe results carry art token"
+else
+  fail "cafe results carry art token"
+fi
+
 echo ""
 echo "=== Result: $PASS passed, $FAIL failed ==="
 [ $FAIL -eq 0 ] && exit 0 || exit 1

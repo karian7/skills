@@ -22,6 +22,18 @@ description: 네이버 검색(뉴스·웹문서 탭)과 현재 에이전트가 �
 
 ## 세 검색 경로의 역할이 다르다
 
+카페 글은 `--where article`로 모은다. 이 버티컬은 블로그·카페가 섞여 나오고,
+카페 항목에는 본문을 여는 `art` 토큰이 URL에 붙은 채로 수집된다.
+
+```bash
+uv run ${CLAUDE_PLUGIN_ROOT}/skills/websearch-enhanced/scripts/naver_search.py \
+  --query "키워드" --where article --pages 1 --format json --out cafe.json
+```
+
+수집한 카페 URL을 그대로 `fetch_article.py`에 넘기면 본문까지 이어진다(실측:
+껍데기 8816자 → 본문 721자). **토큰에 수명이 있으므로 오래된 JSON을 재사용하지 말고
+검색을 다시 돌려라.**
+
 | | 네이버 뉴스 탭 | 네이버 웹문서 탭 | 내장 웹 검색 |
 |---|---|---|---|
 | 강점 | 국내 보도 **전수 색인** — 업계지·중소 매체까지 | 뉴스 색인 밖 **국내 문서** — 정부 공고·대학·기관 페이지 | 공식 사이트·제품 도메인·영문 자료 |
@@ -200,7 +212,7 @@ uv run ${CLAUDE_PLUGIN_ROOT}/skills/websearch-enhanced/scripts/coverage.py \
 | `--query` (필수, 반복) | 검색 키워드 |
 | `--pages N` | 키워드당 SERP 페이지 (기본 2 = 20건) |
 | `--from` / `--to` | 게시일 YYYYMMDD, 함께 지정. 생략 시 전체 기간 |
-| `--where` | `news`(기본)·`web` — 검증됨 / `blog`·`view` — best-effort |
+| `--where` | `news`(기본)·`web`·`article`(카페) — 검증됨 / `blog`·`view` — best-effort |
 | `--format` | `table`(기본) / `json` |
 | `--out FILE` | 파일로 저장, stdout에는 요약만 |
 | `--engine` | `auto`(기본)·`requests`·`browser` |
