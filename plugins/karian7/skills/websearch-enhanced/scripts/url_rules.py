@@ -23,8 +23,12 @@ import urllib.parse
 # blog.naver.com/{blogId}/{logNo} — logNo는 숫자만
 RE_BLOG_PATH = re.compile(r"^/(?P<blog_id>[^/]+)/(?P<log_no>\d+)/?$")
 
-# 로그인 없이는 본문이 나오지 않는 호스트. 브라우저 폴백도 무의미하므로 미리 건너뛴다.
-RE_LOGIN_WALLED = re.compile(r"(^|\.)cafe\.naver\.com$")
+# 네이버 카페. 본문이 로그인 뒤에 있지만 검색 유입 토큰이 붙은 링크는 예외다.
+RE_CAFE = re.compile(r"(^|\.)cafe\.naver\.com$")
+
+# 본문이 iframe·JS 안에 있어 정적 응답의 길이가 본문 유무를 말해주지 않는 호스트.
+# 카페 데스크톱 페이지는 게시글 없이도 8802자를 낸다(2026-09-22 실측) — 전부 GNB·메뉴다.
+RE_RENDER_REQUIRED = RE_CAFE
 
 
 def canonical_url(url: str) -> str:
@@ -38,8 +42,33 @@ def canonical_url(url: str) -> str:
 
 
 def is_login_walled(url: str) -> bool:
-    """로그인 세션 없이는 본문을 못 읽는 주소인가."""
-    return bool(RE_LOGIN_WALLED.search(urllib.parse.urlsplit(url).netloc.lower()))
+    """로그인 세션 없이는 본문을 못 읽는 주소인가.
+
+    네이버 카페는 SERP 앵커에 붙는 `art` 토큰(JWT)이 있으면 로그인 없이 열린다.
+    결정 요인은 Referer 가 아니라 이 토큰이다 — 2026-09-22 실측:
+
+        requests + 네이버 검색 Referer   8849자 (레퍼러 없을 때와 동일한 껍데기)
+        브라우저로 URL 직접 열기          로그인 리디렉트
+        새 세션에서 토큰 URL 직접 열기     본문 799자, 리디렉트 없음
+    """
+    parts = urllib.parse.urlsplit(url)
+    if not RE_CAFE.search(parts.netloc.lower()):
+        return False
+    return not _has_search_token(parts.query)
+
+
+def needs_rendering(url: str) -> bool:
+    """정적 응답 길이로는 본문 유무를 판단할 수 없는 주소인가.
+
+    참이면 글자 수와 무관하게 브라우저로 받아야 한다. 정적 경로가 '성공'처럼 보이는
+    뚱뚱한 껍데기를 내놓기 때문이다.
+    """
+    return bool(RE_RENDER_REQUIRED.search(urllib.parse.urlsplit(url).netloc.lower()))
+
+
+def _has_search_token(query: str) -> bool:
+    """네이버 검색 유입 토큰(`art`)이 값까지 채워져 있는가."""
+    return any(value for value in urllib.parse.parse_qs(query).get("art", []))
 
 
 def _naver_blog_to_mobile(parts: urllib.parse.SplitResult) -> urllib.parse.SplitResult:

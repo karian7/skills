@@ -50,8 +50,24 @@ class CanonicalUrlTest(unittest.TestCase):
 
 
 class LoginWalledTest(unittest.TestCase):
-    def test_naver_cafe_is_login_walled(self) -> None:
+    def test_bare_cafe_link_is_login_walled(self) -> None:
         self.assertTrue(is_login_walled("https://cafe.naver.com/steamindiegame/12345"))
+
+    def test_mobile_cafe_is_login_walled_too(self) -> None:
+        self.assertTrue(is_login_walled("https://m.cafe.naver.com/steamindiegame/12345"))
+
+    def test_cafe_link_with_search_token_is_readable(self) -> None:
+        # SERP 앵커에 붙는 art 토큰이 있으면 로그인 없이 열린다
+        # (2026-09-22 실측: 새 세션에서 토큰 URL 직접 열기 → 본문 799자, 로그인 리디렉트 없음).
+        self.assertFalse(
+            is_login_walled("https://cafe.naver.com/dokchi/13132989?art=ZXh0ZXJuYWwt.eyJhbGciOi.gnqk7Zjt")
+        )
+
+    def test_empty_art_value_does_not_count(self) -> None:
+        self.assertTrue(is_login_walled("https://cafe.naver.com/dokchi/13132989?art="))
+
+    def test_other_query_params_do_not_unlock(self) -> None:
+        self.assertTrue(is_login_walled("https://cafe.naver.com/dokchi/13132989?from=search"))
 
     def test_plain_news_site_is_not(self) -> None:
         self.assertFalse(is_login_walled("https://www.etnews.com/20260604000056"))
