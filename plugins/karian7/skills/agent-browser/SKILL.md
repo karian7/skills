@@ -1,6 +1,6 @@
 ---
 name: agent-browser
-description: Use when the user asks to interact with a website, fill a form, click something, extract data, take a screenshot, log into a site, test a web app, or automate any browser task. Delegates to the agent-browser CLI which uses Chrome via CDP and accessibility-tree snapshots with compact @eN refs.
+description: Use when the user asks to interact with a website, fill a form, click something, extract data, take a screenshot, log into a site, test a web app, or automate any browser task. Also use when a page is client-rendered (SPA) so a plain HTTP fetch returns no usable content - curl/WebFetch/fetch-cli gives 0 chars, only nav and footer boilerplate, or a bare root div - rendering it in a real browser here is the fix. Delegates to the agent-browser CLI which uses Chrome via CDP and accessibility-tree snapshots with compact @eN refs.
 allowed-tools:
   - Bash(agent-browser:*)
   - Bash(npx agent-browser:*)
