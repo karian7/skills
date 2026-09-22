@@ -31,6 +31,7 @@ import argparse
 import base64
 import html as htmllib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -49,13 +50,26 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # (2026-09-22 실측: where=web 에 naver_serp.js → []).
 SNIPPET_BY_WHERE = {"news": "naver_serp.js"}
 DEFAULT_SNIPPET = "naver_serp_web.js"
-SESSION = "naver-search"
 
 
 def snippet_path(where: str) -> Path:
     """버티컬에 맞는 브라우저 추출기 경로."""
     return SCRIPT_DIR / SNIPPET_BY_WHERE.get(where, DEFAULT_SNIPPET)
 
+
+def session_name(explicit: str | None, claude_session: str | None = None,
+                 pid: int | None = None) -> str:
+    """agent-browser 세션 이름. 세션마다 달라야 쿠키·탭이 섞이지 않는다.
+
+    고정 이름을 쓰면 여러 Claude 세션과 병렬 서브에이전트가 같은 브라우저
+    컨텍스트를 공유한다(`skills/agent-browser/SKILL.md` 의 Concurrency 참고).
+    같은 Claude 세션 안에서 병렬로 돌리는 서브에이전트는 `--session` 으로
+    각자 고유 이름을 넘긴다.
+    """
+    if explicit:
+        return explicit
+    marker = claude_session or f"pid{pid if pid is not None else os.getpid()}"
+    return f"naver-search-{marker}"
 
 # ⚠️ Windows 기본 인코딩(cp949)에는 기사 제목에 흔한 구분자(‧ ・ ⋅ ･)와 이 스크립트가 쓰는
 # 기호(— ⚠)가 없다. 강제하지 않으면 `> out.json` 리다이렉션이 UnicodeEncodeError로 죽는다
@@ -343,6 +357,8 @@ def main() -> int:
     parser.add_argument("--engine", choices=("auto", "requests", "browser"), default="auto",
                         help="auto=requests 우선·실패 시 browser 폴백(기본)")
     parser.add_argument("--keep-session", action="store_true", help="수집 후 브라우저를 닫지 않는다")
+    parser.add_argument("--session", help="agent-browser 세션 이름. 같은 Claude 세션에서 "
+                                          "병렬로 돌릴 때 서브에이전트마다 고유 값을 넘긴다")
     args = parser.parse_args()
 
     if bool(args.date_from) != bool(args.date_to):
@@ -350,11 +366,12 @@ def main() -> int:
         return 2
 
     collector = Collector(args.where, args.date_from, args.date_to, args.pages)
+    session = session_name(args.session, os.environ.get("CLAUDE_CODE_SESSION_ID"))
     window = f"{args.date_from}~{args.date_to}" if args.date_from else "전체 기간"
     log(f"[INFO] where={args.where} · 게시일 {window} · 키워드 {len(args.query)}개 · {args.pages}페이지")
 
     if args.engine == "browser":
-        if not collect_with_browser(collector, args.query, args.keep_session, SESSION):
+        if not collect_with_browser(collector, args.query, args.keep_session, session):
             return 2
     else:
         failed = collect_with_requests(collector, args.query)
@@ -363,7 +380,7 @@ def main() -> int:
         if args.engine == "auto" and retry:
             reason = "전 키워드 0건" if not collector.items else f"요청 실패 {len(failed)}건"
             log(f"[WARN] requests 경로 미수집({reason}) → agent-browser 폴백 시도")
-            collect_with_browser(collector, retry, args.keep_session, SESSION)
+            collect_with_browser(collector, retry, args.keep_session, session)
 
     payload = (json.dumps(collector.items, ensure_ascii=False, indent=2)
                if args.format == "json" else render_table(collector.items))
