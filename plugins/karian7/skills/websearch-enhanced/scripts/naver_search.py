@@ -43,8 +43,19 @@ from pathlib import Path
 
 import requests
 
-SNIPPET_JS = Path(__file__).resolve().parent / "naver_serp.js"
+SCRIPT_DIR = Path(__file__).resolve().parent
+
+# 버티컬마다 SERP DOM 이 다르다. 뉴스 탭 추출기를 웹문서 탭에 쓰면 항상 0건이다
+# (2026-09-22 실측: where=web 에 naver_serp.js → []).
+SNIPPET_BY_WHERE = {"news": "naver_serp.js"}
+DEFAULT_SNIPPET = "naver_serp_web.js"
 SESSION = "naver-search"
+
+
+def snippet_path(where: str) -> Path:
+    """버티컬에 맞는 브라우저 추출기 경로."""
+    return SCRIPT_DIR / SNIPPET_BY_WHERE.get(where, DEFAULT_SNIPPET)
+
 
 # ⚠️ Windows 기본 인코딩(cp949)에는 기사 제목에 흔한 구분자(‧ ・ ⋅ ･)와 이 스크립트가 쓰는
 # 기호(— ⚠)가 없다. 강제하지 않으면 `> out.json` 리다이렉션이 UnicodeEncodeError로 죽는다
@@ -280,26 +291,28 @@ def collect_with_requests(collector: Collector, keywords: list[str]) -> list[str
     return failed
 
 
-def collect_with_browser(collector: Collector, keywords: list[str], keep_session: bool) -> bool:
+def collect_with_browser(collector: Collector, keywords: list[str], keep_session: bool,
+                        session: str) -> bool:
     """agent-browser 폴백. 구동 불가면 False."""
     binary = find_agent_browser()
     if not binary:
         log("[WARN] agent-browser 없음 — 폴백 불가. `pnpm add -g agent-browser`로 설치하면 안전망이 생깁니다.")
         return False
-    if not SNIPPET_JS.exists():
-        log(f"[WARN] {SNIPPET_JS} 없음 — 폴백 불가")
+    snippet = snippet_path(collector.where)
+    if not snippet.exists():
+        log(f"[WARN] {snippet} 없음 — 폴백 불가")
         return False
-    snippet_b64 = base64.b64encode(SNIPPET_JS.read_bytes()).decode("ascii")
-    log(f"[INFO] agent-browser 폴백: {binary}")
+    snippet_b64 = base64.b64encode(snippet.read_bytes()).decode("ascii")
+    log(f"[INFO] agent-browser 폴백: {binary} · 추출기 {snippet.name} · 세션 {session}")
     try:
         for keyword in keywords:
             fresh = 0
             for url in collector.urls_for(keyword):
-                fresh += collector.add(keyword, scrape_with_browser(binary, SESSION, url, snippet_b64))
+                fresh += collector.add(keyword, scrape_with_browser(binary, session, url, snippet_b64))
             log(f"[INFO] {keyword} → {fresh}건 (browser)")
     finally:
         if not keep_session:
-            run(binary, SESSION, ["close"], timeout=30)
+            run(binary, session, ["close"], timeout=30)
     return True
 
 
@@ -341,7 +354,7 @@ def main() -> int:
     log(f"[INFO] where={args.where} · 게시일 {window} · 키워드 {len(args.query)}개 · {args.pages}페이지")
 
     if args.engine == "browser":
-        if not collect_with_browser(collector, args.query, args.keep_session):
+        if not collect_with_browser(collector, args.query, args.keep_session, SESSION):
             return 2
     else:
         failed = collect_with_requests(collector, args.query)
@@ -350,7 +363,7 @@ def main() -> int:
         if args.engine == "auto" and retry:
             reason = "전 키워드 0건" if not collector.items else f"요청 실패 {len(failed)}건"
             log(f"[WARN] requests 경로 미수집({reason}) → agent-browser 폴백 시도")
-            collect_with_browser(collector, retry, args.keep_session)
+            collect_with_browser(collector, retry, args.keep_session, SESSION)
 
     payload = (json.dumps(collector.items, ensure_ascii=False, indent=2)
                if args.format == "json" else render_table(collector.items))
