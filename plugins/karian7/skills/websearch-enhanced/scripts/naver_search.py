@@ -173,7 +173,7 @@ def parse_serp(body: str) -> list[dict]:
     return items
 
 
-def run(binary: str, args: list[str], timeout: int = 90) -> subprocess.CompletedProcess:
+def run(binary: str, session: str, args: list[str], timeout: int = 90) -> subprocess.CompletedProcess:
     """agent-browser 한 번 호출.
 
     ⚠️ `capture_output=True`(파이프)를 쓰면 안 된다. agent-browser는 브라우저 세션을
@@ -184,7 +184,7 @@ def run(binary: str, args: list[str], timeout: int = 90) -> subprocess.Completed
     """
     with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
         proc = subprocess.run(
-            [binary, "--session", SESSION, *args],
+            [binary, "--session", session, *args],
             stdin=subprocess.DEVNULL,
             stdout=out,
             stderr=err,
@@ -199,13 +199,13 @@ def run(binary: str, args: list[str], timeout: int = 90) -> subprocess.Completed
         )
 
 
-def scrape_with_browser(binary: str, url: str, snippet_b64: str) -> list[dict]:
-    opened = run(binary, ["open", url])
+def scrape_with_browser(binary: str, session: str, url: str, snippet_b64: str) -> list[dict]:
+    opened = run(binary, session, ["open", url])
     if opened.returncode != 0:
         log(f"[WARN] open 실패: {opened.stderr.strip()[:200]}")
         return []
-    run(binary, ["wait", "--load", "networkidle"], timeout=30)
-    result = run(binary, ["eval", "-b", snippet_b64])
+    run(binary, session, ["wait", "--load", "networkidle"], timeout=30)
+    result = run(binary, session, ["eval", "-b", snippet_b64])
     if result.returncode != 0:
         log(f"[WARN] eval 실패: {result.stderr.strip()[:200]}")
         return []
@@ -295,11 +295,11 @@ def collect_with_browser(collector: Collector, keywords: list[str], keep_session
         for keyword in keywords:
             fresh = 0
             for url in collector.urls_for(keyword):
-                fresh += collector.add(keyword, scrape_with_browser(binary, url, snippet_b64))
+                fresh += collector.add(keyword, scrape_with_browser(binary, SESSION, url, snippet_b64))
             log(f"[INFO] {keyword} → {fresh}건 (browser)")
     finally:
         if not keep_session:
-            run(binary, ["close"], timeout=30)
+            run(binary, SESSION, ["close"], timeout=30)
     return True
 
 
