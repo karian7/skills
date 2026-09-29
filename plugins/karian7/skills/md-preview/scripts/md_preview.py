@@ -29,6 +29,7 @@ LOG_FILE = Path(tempfile.gettempdir()) / "md-preview.log"
 DEFAULT_PORT = 8000
 DEFAULT_POLL_INTERVAL = 0.75
 DEFAULT_BIND_HOST = "127.0.0.1"
+DEFAULT_LANG = "ko"
 VERSION_PATH = "/__md_preview/version"
 UNLOAD_PATH = "/__md_preview/unload"
 MAX_LOG_BYTES = 2 * 1024 * 1024  # 2 MB
@@ -156,6 +157,7 @@ def build_preview(markdown_path: Path) -> Path:
         "--syntax-highlighting",
         "tango",
         f"--metadata=title:{title}",
+        f"--metadata=lang:{DEFAULT_LANG}",
         "--output",
         str(preview_path),
     ]
