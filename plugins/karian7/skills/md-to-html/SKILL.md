@@ -6,7 +6,7 @@ description: >
   Triggers: "마크다운 HTML 변환", "md to html", "HTML 변환", "pandoc 변환",
   "HTML로 공유", "html 파일로 바꿔서 공유하자", "md 공유", "마크다운 공유", "HTML로 올려줘", "변환해서 공유"
 argument-hint: [directory or file]
-allowed-tools: Bash(python3:*), Bash(pandoc:*), Bash(ls:*), Bash(cp:*), Bash(mv:*), Bash(rm:*), Bash(mkdir:*), Bash(echo:*)
+allowed-tools: Bash(python3:*), Bash(pandoc:*), Bash(ls:*), Bash(cp:*), Bash(mv:*), Bash(trash:*), Bash(mkdir:*), Bash(echo:*)
 ---
 
 # Markdown to HTML
@@ -131,7 +131,7 @@ Follow the s3-upload skill workflow:
 **Step 4: Clean up**
 
 ```bash
-rm -rf /tmp/md-to-html-share-<timestamp>
+trash /tmp/md-to-html-share-<timestamp>    # `trash`가 없는 환경에서만 rm -rf
 ```
 
 **Step 5: Report**
