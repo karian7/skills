@@ -222,11 +222,13 @@ INDEX_TEMPLATE = """\
   </style>
 </head>
 <body>
+<main>
   <h1>{title}</h1>
   <p class="file-count">총 {count}개 문서</p>
   <ul class="toc-list">
 {items}
   </ul>
+</main>
 </body>
 </html>
 """

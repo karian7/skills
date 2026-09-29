@@ -49,7 +49,7 @@ $for(include-before)$
 $include-before$
 $endfor$
 <div id="md-preview-container">
-<div class="md-preview-body">
+<main class="md-preview-body">
 $if(toc)$
 <nav id="$idprefix$TOC" role="doc-toc">
 $if(toc-title)$
@@ -62,7 +62,7 @@ $body$
 $for(include-after)$
 $include-after$
 $endfor$
-</div>
+</main>
 </div>
 <script type="module">
   import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
